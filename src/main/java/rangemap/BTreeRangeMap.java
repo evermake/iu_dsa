@@ -26,24 +26,30 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
 
   @Override
   public void add(K key, V value) {
-    Item item = new Item(key, value);
+    Bucket existingBucket = root.lookupBucket(key);
 
-    if (root.isFull()) {
-      /* Split root */
-      Node newRoot = new Node(null, false);
-      Node oldRoot = root;
-      oldRoot.parent = newRoot;
+    if (existingBucket != null) {
+      existingBucket.addValueLast(value);
+    } else {
+      Bucket newBucket = new Bucket(key, value);
 
-      newRoot.firstNode = root;
-      newRoot.lastNode = root;
-      newRoot.childrenCount = 1;
+      if (root.isFull()) {
+        /* Split root */
+        Node newRoot = new Node(null, false);
+        Node oldRoot = root;
+        oldRoot.parent = newRoot;
 
-      oldRoot.split();
+        newRoot.firstNode = root;
+        newRoot.lastNode = root;
+        newRoot.childrenCount = 1;
 
-      root = newRoot;
+        oldRoot.split();
+
+        root = newRoot;
+      }
+
+      root.insertNonFull(newBucket);
     }
-
-    root.insertNonFull(item);
 
     size++;
   }
@@ -55,16 +61,16 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
 
   @Override
   public boolean contains(K key) {
-    return root.lookupItem(key) != null;
+    return root.lookupBucket(key) != null;
   }
 
   @Override
   public V lookup(K key) {
-    Item item = root.lookupItem(key);
-    if (item == null) {
-      return null;
+    Value value = root.lookupValue(key);
+    if (value != null) {
+      return value.value;
     }
-    return item.value;
+    return null;
   }
 
   @Override
@@ -72,11 +78,11 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     List<V> lookupResult = new LinkedList<>();
 
     for (
-        Item item = root.lookupItem(from);
-        item != null && item.key.compareTo(to) <= 0;
-        item = item.getSuccessor()
+        Value value = root.lookupValue(from);
+        value != null && value.parent.key.compareTo(to) <= 0;
+        value = value.getSuccessor()
     ) {
-      lookupResult.add(item.value);
+      lookupResult.add(value.value);
     }
 
     return lookupResult;
@@ -86,87 +92,95 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     Node parent;
     boolean leaf;
     int childrenCount;
-    int itemsCount;
+    int bucketsCount;
     Node previousNode;
-    Item previousItem;
+    Bucket previousBucket;
     Node nextNode;
-    Item nextItem;
+    Bucket nextBucket;
     Node firstNode;
-    Item firstItem;
+    Bucket firstBucket;
     Node lastNode;
-    Item lastItem;
+    Bucket lastBucket;
 
     public Node(Node parent, boolean leaf) {
       this.parent = parent;
       this.leaf = leaf;
       this.childrenCount = 0;
-      this.itemsCount = 0;
+      this.bucketsCount = 0;
       this.previousNode = null;
-      this.previousItem = null;
+      this.previousBucket = null;
       this.nextNode = null;
-      this.nextItem = null;
+      this.nextBucket = null;
       this.firstNode = null;
-      this.firstItem = null;
+      this.firstBucket = null;
       this.lastNode = null;
-      this.lastItem = null;
+      this.lastBucket = null;
     }
 
-    Item lookupItem(K key) {
-      Item item = firstItem;
-      while (item != null && key.compareTo(item.key) > 0) {
-        item = item.nextItem;
+    Value lookupValue(K key) {
+      Bucket bucket = lookupBucket(key);
+      if (bucket != null) {
+        return bucket.firstValue;
+      }
+      return null;
+    }
+
+    Bucket lookupBucket(K key) {
+      Bucket bucket = firstBucket;
+      while (bucket != null && key.compareTo(bucket.key) > 0) {
+        bucket = bucket.nextBucket;
       }
 
-      if (item != null && key.compareTo(item.key) == 0) {
-        /* Item is found */
-        return item;
+      if (bucket != null && key.compareTo(bucket.key) == 0) {
+        /* Bucket is found */
+        return bucket;
       }
 
-      /* Item in the current node is not found */
+      /* Bucket in the current node is not found */
 
       if (leaf) {
         return null;
       }
 
       // Search in the subtree
-      Node childToLookup = item == null ? lastNode : item.previousNode;
-      return childToLookup.lookupItem(key);
+      Node childToLookup = bucket == null ? lastNode : bucket.previousNode;
+      return childToLookup.lookupBucket(key);
     }
 
     void split() {
       assert isFull();
 
-      Item medianItem = getItem(t - 1);
-      assert medianItem.parent == this;
+      Bucket medianBucket = getMedianBucket();
+      assert medianBucket.parent == this;
 
-      // Save nodes and items around the median item
-      // ... [I] (N) [M] (N) [I] ...
+      // Save nodes and buckets around the median bucket
+      // ... [B] (N) [M] (N) [B] ...
       //             ^^^^
-      Node preMedianNode = medianItem.previousNode;
-      Item preMedianItem = medianItem.previousItem;
-      Node postMedianNode = medianItem.nextNode;
-      Item postMedianItem = medianItem.nextItem;
+      Node preMedianNode = medianBucket.previousNode;
+      Bucket preMedianBucket = medianBucket.previousBucket;
+      Node postMedianNode = medianBucket.nextNode;
+      Bucket postMedianBucket = medianBucket.nextBucket;
 
-      assert preMedianItem != null;
-      assert postMedianItem != null;
+      assert preMedianBucket != null;
+      assert postMedianBucket != null;
 
-      // Add median item to the right of this node.
+      // Add median bucket to the right of this node.
       // It will be added after the pointer to this node in the parent
       // and newly created node (the pointer to which will
-      // located be after this added item) will be returned
+      // located be after this added bucket) will be returned
       // ... (N) [M] (N) ...
       //    this    newNode
       //      |       -
       //     ...
-      Node newNode = addItemToTheRight(medianItem);
+      Node newNode = addBucketToTheRight(medianBucket);
 
-      // "Transfer" right part of items and children lists
+      // "Transfer" right part of buckets and children lists
       // to the newly created node
-      newNode.firstItem = postMedianItem;
-      newNode.lastItem = lastItem;
-      lastItem = preMedianItem;
-      postMedianItem.previousItem = null;
-      preMedianItem.nextItem = null;
+      newNode.firstBucket = postMedianBucket;
+      newNode.lastBucket = lastBucket;
+      lastBucket = preMedianBucket;
+      postMedianBucket.previousBucket = null;
+      preMedianBucket.nextBucket = null;
 
       if (leaf) {
         /* do not transfer children, since leaf has no children */
@@ -179,122 +193,122 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
 
         lastNode = preMedianNode;
 
-        preMedianNode.nextItem = null;
+        preMedianNode.nextBucket = null;
         preMedianNode.nextNode = null;
         postMedianNode.previousNode = null;
-        postMedianNode.previousItem = null;
+        postMedianNode.previousBucket = null;
 
         childrenCount = t;
         newNode.childrenCount = t;
       }
 
       // Update sizes
-      newNode.itemsCount = t - 1;
-      itemsCount = t - 1;
+      newNode.bucketsCount = t - 1;
+      bucketsCount = t - 1;
 
-      newNode.updateChildrenAndItemsParent();
+      newNode.updateChildrenAndBucketsParent();
     }
 
     boolean isFull() {
-      return itemsCount >= (2 * t) - 1;
+      return bucketsCount >= (2 * t) - 1;
     }
 
     boolean nonEmpty() {
-      return itemsCount > 0;
+      return bucketsCount > 0;
     }
 
-    Item getItem(int index) {
+    Bucket getMedianBucket() {
       int i = 0;
-      Item item = firstItem;
-      while (i < index && item != null) {
-        item = item.nextItem;
+      Bucket bucket = firstBucket;
+      while (i < t - 1 && bucket != null) {
+        bucket = bucket.nextBucket;
         i++;
       }
-      return item;
+      return bucket;
     }
 
     /**
      * TODO: write docstring
      *
-     * @param item item to add
+     * @param bucket bucket to add
      *
-     * @return newly created node that will be the next node of the added item
+     * @return newly created node that will be the next node of the added bucket
      */
-    Node addItemToTheRight(Item item) {
+    Node addBucketToTheRight(Bucket bucket) {
       assert !parent.leaf;
 
       Node newNode = new Node(parent, this.leaf);
-      item.parent = parent;
+      bucket.parent = parent;
 
       Node oldNextNode = nextNode;
-      Item oldNextItem = nextItem;
+      Bucket oldNextBucket = nextBucket;
 
       nextNode = newNode;
-      nextItem = item;
+      nextBucket = bucket;
       newNode.previousNode = this;
-      newNode.previousItem = item;
+      newNode.previousBucket = bucket;
       newNode.nextNode = oldNextNode;
-      newNode.nextItem = oldNextItem;
+      newNode.nextBucket = oldNextBucket;
 
-      item.previousNode = this;
-      item.previousItem = previousItem;
-      item.nextNode = newNode;
-      item.nextItem = oldNextItem;
+      bucket.previousNode = this;
+      bucket.previousBucket = previousBucket;
+      bucket.nextNode = newNode;
+      bucket.nextBucket = oldNextBucket;
 
       if (oldNextNode == null) {
         /* Node was last node */
-        assert oldNextItem == null;
+        assert oldNextBucket == null;
 
         parent.lastNode = newNode;
-        parent.lastItem = item;
+        parent.lastBucket = bucket;
       } else {
         oldNextNode.previousNode = newNode;
-        // oldNextNode.previousItem does not change
-        oldNextItem.previousNode = newNode;
-        oldNextItem.previousItem = item;
+        // oldNextNode.previousBucket does not change
+        oldNextBucket.previousNode = newNode;
+        oldNextBucket.previousBucket = bucket;
       }
 
-      if (previousItem == null) {
+      if (previousBucket == null) {
         /* Node is first node */
         assert previousNode == null;
         assert parent.firstNode == this;
-        parent.firstItem = item;
+        parent.firstBucket = bucket;
       } else {
-        previousItem.nextItem = item;
+        previousBucket.nextBucket = bucket;
       }
 
       parent.childrenCount++;
-      parent.itemsCount++;
+      parent.bucketsCount++;
 
       return newNode;
     }
 
-    void updateChildrenAndItemsParent() {
+    void updateChildrenAndBucketsParent() {
       for (Node child = firstNode; child != null; child = child.nextNode) {
         child.parent = this;
       }
-      for (Item item = firstItem; item != null; item = item.nextItem) {
-        item.parent = this;
+      for (Bucket bucket = firstBucket; bucket != null; bucket = bucket.nextBucket) {
+        bucket.parent = this;
       }
     }
 
-    void insertNonFull(Item item) {
-      Item leftNeighbour = lastItem;
-      while (leftNeighbour != null && item.key.compareTo(leftNeighbour.key) < 0) {
-        leftNeighbour = leftNeighbour.previousItem;
+    void insertNonFull(Bucket bucket) {
+      Bucket leftNeighbour = lastBucket;
+      while (leftNeighbour != null && bucket.key.compareTo(leftNeighbour.key) < 0) {
+        leftNeighbour = leftNeighbour.previousBucket;
       }
 
       if (leaf) {
-        /* Just insert item into items list */
+        /* Just insert bucket into buckets list */
 
         if (leftNeighbour == null) {
           /* Key is minimum */
-          insertItemInFrontLeaf(item);
+          insertBucketInFrontLeaf(bucket);
         } else {
-          appendItemToItemLeaf(leftNeighbour, item);
+          appendBucketToBucketLeaf(leftNeighbour, bucket);
         }
 
-        assert item.parent == this;
+        assert bucket.parent == this;
       } else {
         /* Insert into subtree */
 
@@ -305,117 +319,165 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
           childToInsert.split();
 
           /*
-            Child has been split -> item was lifted and new node was inserted
+            Child has been split -> bucket was lifted and new node was inserted
             after childToInsert -> we should decide into which node of two
             to insert now
           */
 
-          Item liftedItem = childToInsert.nextItem;
+          Bucket liftedBucket = childToInsert.nextBucket;
 
-          assert liftedItem.parent == childToInsert.parent;
-          assert liftedItem.parent == this;
-          assert childToInsert.nextNode == liftedItem.nextNode;
+          assert liftedBucket.parent == childToInsert.parent;
+          assert liftedBucket.parent == this;
+          assert childToInsert.nextNode == liftedBucket.nextNode;
 
-          if (item.key.compareTo(liftedItem.key) > 0) {
+          if (bucket.key.compareTo(liftedBucket.key) > 0) {
             childToInsert = childToInsert.nextNode;
           }
         }
 
-        childToInsert.insertNonFull(item);
+        childToInsert.insertNonFull(bucket);
       }
     }
 
-    void insertItemInFrontLeaf(Item item) {
+    void insertBucketInFrontLeaf(Bucket bucket) {
       assert leaf;
       assert firstNode == null;
       assert lastNode == null;
 
-      item.parent = this;
+      bucket.parent = this;
 
-      if (itemsCount == 0) {
-        /* item is first */
-        assert firstItem == null;
-        assert lastItem == null;
+      if (bucketsCount == 0) {
+        /* Bucket is first */
+        assert firstBucket == null;
+        assert lastBucket == null;
 
-        firstItem = item;
-        lastItem = item;
+        firstBucket = bucket;
+        lastBucket = bucket;
       } else {
-        assert firstItem != null;
-        assert lastItem != null;
+        assert firstBucket != null;
+        assert lastBucket != null;
 
-        Item oldFirstItem = firstItem;
-        item.nextItem = oldFirstItem;
-        oldFirstItem.previousItem = item;
+        Bucket oldFirstBucket = firstBucket;
+        bucket.nextBucket = oldFirstBucket;
+        oldFirstBucket.previousBucket = bucket;
 
-        firstItem = item;
+        firstBucket = bucket;
       }
 
-      itemsCount++;
+      bucketsCount++;
     }
 
-    void appendItemToItemLeaf(Item leftItem, Item newItem) {
+    void appendBucketToBucketLeaf(Bucket leftBucket, Bucket newBucket) {
       assert leaf;
-      assert leftItem.parent == this;
+      assert leftBucket.parent == this;
 
-      newItem.parent = this;
+      newBucket.parent = this;
 
-      if (leftItem.nextItem == null) {
+      if (leftBucket.nextBucket == null) {
         /* appending in the end */
-        assert lastItem == leftItem;
+        assert lastBucket == leftBucket;
 
-        leftItem.nextItem = newItem;
-        newItem.previousItem = leftItem;
-        lastItem = newItem;
+        leftBucket.nextBucket = newBucket;
+        newBucket.previousBucket = leftBucket;
+        lastBucket = newBucket;
       } else {
-        assert lastItem != null;
-        assert lastItem != leftItem;
+        assert lastBucket != null;
+        assert lastBucket != leftBucket;
 
-        Item oldNextItem = leftItem.nextItem;
-        leftItem.nextItem = newItem;
-        newItem.previousItem = leftItem;
-        newItem.nextItem = oldNextItem;
-        oldNextItem.previousItem = newItem;
+        Bucket oldNextBucket = leftBucket.nextBucket;
+        leftBucket.nextBucket = newBucket;
+        newBucket.previousBucket = leftBucket;
+        newBucket.nextBucket = oldNextBucket;
+        oldNextBucket.previousBucket = newBucket;
       }
 
-      itemsCount++;
+      bucketsCount++;
     }
 
-    Item getMinimumItem() {
+    Value getMinimumValue() {
+      return getMinimumBucket().firstValue;
+    }
+
+    Bucket getMinimumBucket() {
       if (!leaf && firstNode != null && firstNode.nonEmpty()) {
-        return firstNode.getMinimumItem();
+        return firstNode.getMinimumBucket();
       }
 
-      return firstItem;
+      return firstBucket;
     }
   }
 
-  private final class Item {
+  private final class Bucket {
     K key;
-    V value;
+    int size;
     Node parent;
     Node previousNode;
-    Item previousItem;
     Node nextNode;
-    Item nextItem;
+    Bucket previousBucket;
+    Bucket nextBucket;
+    Value firstValue;
+    Value lastValue;
 
-    public Item(K key, V value) {
+    public Bucket(K key, V initialValue) {
       this.key = key;
-      this.value = value;
       this.parent = null;
       this.previousNode = null;
-      this.previousItem = null;
+      this.previousBucket = null;
       this.nextNode = null;
-      this.nextItem = null;
+      this.nextBucket = null;
+
+      firstValue = new Value(initialValue, this);
+      lastValue = firstValue;
+      this.size = 1;
+    }
+
+    void addValueLast(V value) {
+      Value newValue = new Value(value, this);
+
+      if (size == 0) {
+        firstValue = newValue;
+      } else {
+        Value oldLastValue = lastValue;
+        oldLastValue.nextValue = newValue;
+        newValue.previousValue = oldLastValue;
+      }
+
+      lastValue = newValue;
+      size++;
+    }
+  }
+
+  private final class Value {
+    V value;
+    Bucket parent;
+    Value previousValue;
+    Value nextValue;
+
+    Value(V value, Bucket parent) {
+      this.value = value;
+      this.parent = parent;
+      this.previousValue = null;
+      this.nextValue = null;
     }
 
     @Nullable
-    Item getSuccessor() {
-      if (nextNode != null && nextNode.nonEmpty()) {
-        return nextNode.getMinimumItem();
-      } else if (nextItem != null) {
-        return nextItem;
-      } else if (parent != null && parent.nextItem != null) {
-        return parent.nextItem;
+    Value getSuccessor() {
+      if (nextValue != null) {
+        return nextValue;
+      }
+
+      Bucket bucket = parent;
+
+      if (bucket.nextNode != null && bucket.nextNode.nonEmpty()) {
+        return bucket.nextNode.getMinimumValue();
+      } else if (bucket.nextBucket != null) {
+        return bucket.nextBucket.firstValue;
+      }
+
+      Node node = parent.parent;
+
+      if (node != null && node.nextBucket != null) {
+        return node.nextBucket.firstValue;
       }
 
       return null;
