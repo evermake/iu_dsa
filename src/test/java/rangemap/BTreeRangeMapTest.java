@@ -175,6 +175,8 @@ class BTreeRangeMapTest {
       rangeMap.add(randomKey, randomValue);
     }
 
+    assertEquals(1000, rangeMap.size());
+
     int minKey = Collections.min(randomKeys);
     int maxKey = Collections.max(randomKeys);
 
