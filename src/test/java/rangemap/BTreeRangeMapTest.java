@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.RepeatedTest;
@@ -155,5 +156,35 @@ class BTreeRangeMapTest {
     );
     List<String> range3Actual = rangeMap.lookupRange(1, 7);
     assertEquals(range3Expected, range3Actual);
+  }
+
+  @Test
+  void testLookupRangeWithDuplicateKeys() {
+    RangeMap<Integer, Integer> rangeMap = new BTreeRangeMap<>();
+
+    List<Integer> randomKeys = new ArrayList<>(1000);
+    List<Integer> randomValues = new ArrayList<>(1000);
+
+    for (int i = 0; i < 1000; i++) {
+      int randomKey = getRandomInteger(-10, 10);
+      int randomValue = getRandomInteger(-100000, 100000);
+
+      randomKeys.add(randomKey);
+      randomValues.add(randomValue);
+
+      rangeMap.add(randomKey, randomValue);
+    }
+
+    int minKey = Collections.min(randomKeys);
+    int maxKey = Collections.max(randomKeys);
+
+    List<Integer> lookupResult = rangeMap.lookupRange(minKey, maxKey);
+
+    assertEquals(1000, lookupResult.size());
+
+    int expectedSum = randomValues.stream().mapToInt(Integer::intValue).sum();
+    int actualSum = lookupResult.stream().mapToInt(Integer::intValue).sum();
+
+    assertEquals(expectedSum, actualSum);
   }
 }
