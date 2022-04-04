@@ -193,4 +193,23 @@ class BTreeRangeMapTest {
 
     assertEquals(expectedSum, actualSum);
   }
+
+  @Test
+  void testLookupRangeWithEqualFromAndTo() {
+    RangeMap<Integer, Integer> rangeMap = new BTreeRangeMap<>();
+
+    rangeMap.add(15, 1);
+
+    assertEquals(1, sumIntegers(rangeMap.lookupRange(15, 15)));
+
+    rangeMap.add(10, 7);
+    rangeMap.add(15, 5);
+    rangeMap.add(15, 14);
+
+    assertEquals(20, sumIntegers(rangeMap.lookupRange(15, 15)));
+    assertEquals(7, sumIntegers(rangeMap.lookupRange(10, 10)));
+
+    rangeMap.add(15, -20);
+    assertEquals(0, sumIntegers(rangeMap.lookupRange(15, 15)));
+  }
 }
