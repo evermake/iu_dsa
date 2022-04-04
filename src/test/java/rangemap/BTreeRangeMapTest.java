@@ -11,6 +11,10 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 class BTreeRangeMapTest {
+  private static int sumIntegers(List<Integer> integers) {
+    return integers.stream().mapToInt(Integer::intValue).sum();
+  }
+
   private Integer getRandomInteger(int a, int b) {
     return ThreadLocalRandom.current().nextInt(a, b + 1);
   }
@@ -184,8 +188,8 @@ class BTreeRangeMapTest {
 
     assertEquals(1000, lookupResult.size());
 
-    int expectedSum = randomValues.stream().mapToInt(Integer::intValue).sum();
-    int actualSum = lookupResult.stream().mapToInt(Integer::intValue).sum();
+    int expectedSum = sumIntegers(randomValues);
+    int actualSum = sumIntegers(lookupResult);
 
     assertEquals(expectedSum, actualSum);
   }
