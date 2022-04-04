@@ -472,10 +472,10 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
         return bucket.nextBucket.firstValue;
       }
 
-      Node node = parent.parent;
-
-      if (node != null && node.nextBucket != null) {
-        return node.nextBucket.firstValue;
+      for (Node node = bucket.parent; node != null; node = node.parent) {
+        if (node.nextBucket != null) {
+          return node.nextBucket.firstValue;
+        }
       }
 
       return null;
