@@ -212,4 +212,14 @@ class BTreeRangeMapTest {
     rangeMap.add(15, -20);
     assertEquals(0, sumIntegers(rangeMap.lookupRange(15, 15)));
   }
+
+  @Test
+  void testEmptyLookupRange() {
+    RangeMap<Integer, Integer> rangeMap = new BTreeRangeMap<>();
+
+    rangeMap.add(-20, 123);
+    rangeMap.add(21, 500);
+
+    assertEquals(0, sumIntegers(rangeMap.lookupRange(-15, 20)));
+  }
 }
