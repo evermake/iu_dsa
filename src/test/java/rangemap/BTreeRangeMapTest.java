@@ -1,22 +1,18 @@
 package rangemap;
 
+import static common.Utils.getRandomInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 class BTreeRangeMapTest {
   private static int sumIntegers(List<Integer> integers) {
     return integers.stream().mapToInt(Integer::intValue).sum();
-  }
-
-  private Integer getRandomInteger(int a, int b) {
-    return ThreadLocalRandom.current().nextInt(a, b + 1);
   }
 
   @Test
