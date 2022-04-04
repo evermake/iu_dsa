@@ -2,7 +2,6 @@ package rangemap;
 
 import java.util.LinkedList;
 import java.util.List;
-import org.jetbrains.annotations.Nullable;
 
 public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V> {
   private final int t = 4;
@@ -460,7 +459,6 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
       this.nextValue = null;
     }
 
-    @Nullable
     Value getSuccessor() {
       if (nextValue != null) {
         return nextValue;
