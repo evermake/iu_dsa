@@ -1,8 +1,6 @@
 package rangemap;
 
-import common.DateParser;
-import java.text.ParseException;
-import java.util.Date;
+import common.Date;
 import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -32,18 +30,18 @@ public class Solution {
     try {
       switch (matchedCommand) {
         case DEPOSIT:
-          Date depositDate = DateParser.fromString(arg1);
+          Date depositDate = Date.fromString(arg1);
           long depositAmount = Long.parseLong(arg2);
           operationsHistory.add(depositDate, depositAmount);
           break;
         case WITHDRAW:
-          Date withdrawDate = DateParser.fromString(arg1);
+          Date withdrawDate = Date.fromString(arg1);
           long withdrawAmount = Long.parseLong(arg2);
           operationsHistory.add(withdrawDate, withdrawAmount * -1);
           break;
         case REPORT:
-          Date dateFrom = DateParser.fromString(arg1);
-          Date dateTo = DateParser.fromString(arg2);
+          Date dateFrom = Date.fromString(arg1);
+          Date dateTo = Date.fromString(arg2);
 
           if (!operationsHistory.contains(dateFrom)) {
             operationsHistory.add(dateFrom, 0L);
@@ -54,7 +52,7 @@ public class Solution {
           System.out.println(rangeSum);
           break;
       }
-    } catch (ParseException e) {
+    } catch (IllegalArgumentException e) {
       throw new InvalidInputException();
     }
   }
