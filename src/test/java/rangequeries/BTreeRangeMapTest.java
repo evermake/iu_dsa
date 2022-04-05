@@ -1,4 +1,4 @@
-package rangemap;
+package rangequeries;
 
 import static common.Utils.getRandomInteger;
 import static org.junit.jupiter.api.Assertions.*;

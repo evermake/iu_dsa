@@ -1,4 +1,4 @@
-package rangemap;
+package rangequeries;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

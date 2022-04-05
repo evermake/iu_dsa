@@ -1,4 +1,4 @@
-package rangemap;
+package rangequeries;
 
 import java.util.List;
 
