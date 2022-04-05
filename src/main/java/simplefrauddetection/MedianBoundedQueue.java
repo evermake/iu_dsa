@@ -55,6 +55,10 @@ public class MedianBoundedQueue {
   }
 
   public Double getMedian() {
+    if (values.isEmpty()) {
+      return null;
+    }
+
     if (cachedMedian == null) {
       ArrayList<Double> valuesCopy = new ArrayList<>(values);
       MergeSort.sort(valuesCopy);
