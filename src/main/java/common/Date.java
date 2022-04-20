@@ -81,4 +81,13 @@ public class Date implements Comparable<Date> {
         other.calendarDate.toInstant()
     );
   }
+
+  /**
+   * @return date as string in format YYYY-MM-DD
+   */
+  public String toString() {
+    return String.format("%04d", (calendarDate.get(Calendar.YEAR))) + "-"
+        + String.format("%02d", calendarDate.get(Calendar.MONTH) + 1) + "-"
+        + String.format("%02d", calendarDate.get(Calendar.DATE));
+  }
 }
