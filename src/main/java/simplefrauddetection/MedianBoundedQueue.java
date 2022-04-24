@@ -1,3 +1,6 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package simplefrauddetection;
 
 import java.util.ArrayList;
@@ -6,7 +9,8 @@ import java.util.List;
 import java.util.Queue;
 
 /**
- * TODO: write a documentation
+ * Wrapper for {@link Queue} that bounds size to {@code capacity} and provides
+ * method for calculating median value of the queue.
  */
 public class MedianBoundedQueue {
   private final int capacity;
@@ -54,11 +58,15 @@ public class MedianBoundedQueue {
     return values.size();
   }
 
+  /**
+   * @return current median of the queue
+   */
   public Double getMedian() {
     if (values.isEmpty()) {
       return null;
     }
 
+    // If there is no cached median, calculate it
     if (cachedMedian == null) {
       ArrayList<Double> valuesCopy = new ArrayList<>(values);
       MergeSort.sort(valuesCopy);

@@ -1,3 +1,6 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package simplefrauddetection;
 
 import common.Date;
@@ -30,5 +33,9 @@ public class Spending {
 
   public double getAmount() {
     return amount;
+  }
+
+  public String asRawInput() {
+    return date.toString() + " $" + amount;
   }
 }

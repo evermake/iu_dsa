@@ -1,3 +1,7 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
+
 package simplefrauddetection;
 
 import java.util.Iterator;
@@ -5,6 +9,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
+/**
+ * Class containing implementation of the Merge sorting algorithm.
+ */
 public class MergeSort {
   public static <T extends Comparable<T>> void sort(List<T> list) {
     if (list.size() <= 1) {

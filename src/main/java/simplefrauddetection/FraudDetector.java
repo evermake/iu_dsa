@@ -1,7 +1,13 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package simplefrauddetection;
 
 import common.Date;
 
+/**
+ * Class with fraud detection logic.
+ */
 public class FraudDetector {
   private final MedianBoundedQueue lastTrailingDaysSpendings;
   private double currentDayTotalAmount;

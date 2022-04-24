@@ -1,3 +1,6 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package simplefrauddetection;
 
 import java.util.LinkedList;
@@ -6,11 +9,23 @@ import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Solution for the problem A (simple fraud detection).
+ */
 public class Solution {
   private static final Pattern SPENDING_PATTERN = Pattern.compile(
       "^(?<date>\\d{4}-\\d{2}-\\d{2}) \\$(?<amount>\\d+(?:\\.\\d+)?)$"
   );
 
+  /**
+   * Parses spending from the string.
+   *
+   * @param spending spending as String
+   *
+   * @return parsed {@link Spending}
+   *
+   * @throws InvalidInputException if given {@code spending} is in incorrect format
+   */
   private static Spending parseSpending(String spending) throws InvalidInputException {
     Matcher spendingMatcher = SPENDING_PATTERN.matcher(spending);
 
