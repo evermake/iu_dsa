@@ -25,7 +25,7 @@ public class Solution {
    */
   private static void performCommandOnOperationsHistory(
       String commandString,
-      RangeMap<Date, Long> operationsHistory
+      RangeMap<Date, Integer> operationsHistory
   ) throws InvalidInputException {
     Command matchedCommand = null;
     Matcher commandMatcher = null;
@@ -48,12 +48,12 @@ public class Solution {
       switch (matchedCommand) {
         case DEPOSIT:
           Date depositDate = Date.fromString(arg1);
-          long depositAmount = Long.parseLong(arg2);
+          Integer depositAmount = Integer.parseInt(arg2);
           operationsHistory.add(depositDate, depositAmount);
           break;
         case WITHDRAW:
           Date withdrawDate = Date.fromString(arg1);
-          long withdrawAmount = Long.parseLong(arg2);
+          Integer withdrawAmount = Integer.parseInt(arg2);
           operationsHistory.add(withdrawDate, withdrawAmount * -1);
           break;
         case REPORT:
@@ -61,11 +61,11 @@ public class Solution {
           Date dateTo = Date.fromString(arg2);
 
           if (!operationsHistory.contains(dateFrom)) {
-            operationsHistory.add(dateFrom, 0L);
+            operationsHistory.add(dateFrom, 0);
           }
 
-          List<Long> operations = operationsHistory.lookupRange(dateFrom, dateTo);
-          long rangeSum = operations.stream().mapToLong(Long::longValue).sum();
+          List<Integer> operations = operationsHistory.lookupRange(dateFrom, dateTo);
+          Integer rangeSum = operations.stream().mapToInt(Integer::intValue).sum();
           System.out.println(rangeSum);
           break;
       }
@@ -75,7 +75,7 @@ public class Solution {
   }
 
   public static void main(String[] args) throws InvalidInputException {
-    RangeMap<Date, Long> operationsHistory = new BTreeRangeMap<>();
+    RangeMap<Date, Integer> operationsHistory = new BTreeRangeMap<>();
     Scanner scanner = new Scanner(System.in);
     int n = scanner.nextInt();
     scanner.nextLine();
