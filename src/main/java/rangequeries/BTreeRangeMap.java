@@ -1,8 +1,27 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package rangequeries;
 
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * {@link RangeMap} implementation based on BTree.
+ * BTree is made of nodes and buckets in the following structure:
+ * <p>
+ * --------(Node)------   [Bucket] (Node) [Bucket] (Node) ...
+ * /                   \             |               |
+ * (Node) [Bucket] ... (Node)       ...             ...
+ *
+ * <p>
+ * Node has only children and pointers to its neighbour buckets and nodes.
+ * Bucket contains key and values associated with key. Buckets are not necessary and
+ * are only created for proper handling items with equal keys.
+ *
+ * @param <K>     type of the node's key
+ * @param <V>type of the node's value
+ */
 public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V> {
   private final int t = 4;
   private Node root;
@@ -76,6 +95,7 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
   public List<V> lookupRange(K from, K to) {
     List<V> lookupResult = new LinkedList<>();
 
+    // Find "from" value and iteratively add its successors into the list
     for (
         Value value = root.lookupValue(from);
         value != null && value.parent.key.compareTo(to) <= 0;
@@ -87,6 +107,15 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     return lookupResult;
   }
 
+  /**
+   * Node of the BTree. All main BTree operations are implemented here.
+   * <p>
+   * It has fields
+   * - {@code previousNode, previousBucket, nextNode, nextBucket} that
+   * helps for faster traversing in the tree.
+   * - {@code firstNode, firstBucket, lastNode, lastBucket} for easier accessing its
+   * child nodes and buckets.
+   */
   private final class Node {
     Node parent;
     boolean leaf;
@@ -216,6 +245,10 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
       return bucketsCount > 0;
     }
 
+    /**
+     * Returns median bucket (at index t - 1) in the node.
+     * Important: assuming that node is full!
+     */
     Bucket getMedianBucket() {
       int i = 0;
       Bucket bucket = firstBucket;
@@ -227,7 +260,11 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     }
 
     /**
-     * TODO: write docstring
+     * Add new bucket to the right of this node.
+     * Also creates and adds to the right one new node, because between each bucket
+     * must be a node.
+     * Updates all necessary pointers and increments parent's children and buckets
+     * counters.
      *
      * @param bucket bucket to add
      *
@@ -406,6 +443,10 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     }
   }
 
+  /**
+   * Class which contains all values for the specific key (as linked list).
+   * I created this class to properly handle items with equal keys.
+   */
   private final class Bucket {
     K key;
     int size;
@@ -446,6 +487,10 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
     }
   }
 
+  /**
+   * Class that represents single value. It is stored in {@link Bucket}, which
+   * stores the associated key.
+   */
   private final class Value {
     V value;
     Bucket parent;
@@ -459,6 +504,9 @@ public class BTreeRangeMap<K extends Comparable<K>, V> implements RangeMap<K, V>
       this.nextValue = null;
     }
 
+    /**
+     * @return successor value
+     */
     Value getSuccessor() {
       if (nextValue != null) {
         return nextValue;

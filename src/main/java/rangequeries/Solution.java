@@ -1,3 +1,6 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
 package rangequeries;
 
 import common.Date;
@@ -5,7 +8,21 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 
+
+/**
+ * Class containing solution for the Range Queries problem (Problem A on CodeForces).
+ */
 public class Solution {
+  /**
+   * Parses command from {@code commandString} and executes it on
+   * {@code operationsHistory} {@link RangeMap}.
+   *
+   * @param commandString     command string to parse and execute
+   * @param operationsHistory {@link RangeMap} object containing operations history
+   *                          on which command will be executed
+   *
+   * @throws InvalidInputException when fails to parse the command
+   */
   private static void performCommandOnOperationsHistory(
       String commandString,
       RangeMap<Date, Long> operationsHistory
@@ -71,6 +88,10 @@ public class Solution {
     }
   }
 
+  /**
+   * {@code InvalidInputException} is thrown when program
+   * reads input, which is in the incorrect format.
+   */
   private static final class InvalidInputException extends Exception {
   }
 }

@@ -1,3 +1,7 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
+
 package rangequeries;
 
 import java.util.List;
