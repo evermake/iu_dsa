@@ -1,24 +1,29 @@
+/**
+ * Created by Vladislav Deryabkin
+ */
+
 package carrentalcompany;
 
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 
+/**
+ * Implementation of the min-{@link PriorityQueue} based on {@code FibonacciHeap}.
+ *
+ * @param <K> type of the key (must be {@link Comparable})
+ * @param <V> type of the value
+ */
 public class FibonacciHeap<K extends Comparable<K>, V> implements PriorityQueue<K, V> {
-  Node min;
-  Node firstRootNode;
-  Node lastRootNode;
+  Node<K, V> min;
+  Node<K, V> firstRootNode;
+  Node<K, V> lastRootNode;
   int size;
-  Map<K, Deque<V>> valuesMap;
 
   public FibonacciHeap() {
     this.min = null;
     this.firstRootNode = null;
     this.lastRootNode = null;
     this.size = 0;
-    this.valuesMap = new HashMap<>();
   }
 
   @Override
@@ -27,163 +32,203 @@ public class FibonacciHeap<K extends Comparable<K>, V> implements PriorityQueue<
   }
 
   @Override
-  public void insert(K key, V value) {
-    Node node = new Node(key);
-    appendToRootList(node);
+  public void insert(Node<K, V> node) {
+    node.containingQueue = this;
+    insertIntoRootList(node);
 
-    if (min == null || node.key.compareTo(min.key) < 0) {
+    if (min == null || node.compareTo(min) < 0) {
       min = node;
-    }
-
-    if (valuesMap.containsKey(key)) {
-      valuesMap.get(key).offer(value);
-    } else {
-      Deque<V> keyValues = new LinkedList<>();
-      keyValues.offer(value);
-      valuesMap.put(key, keyValues);
     }
 
     size++;
   }
 
   @Override
-  public V findMin() {
-    return (min == null) ? null : valuesMap.get(min.key).peek();
+  public Node<K, V> findMin() {
+    return (min == null) ? null : min;
   }
 
   @Override
-  public V extractMin() {
+  public Node<K, V> extractMin() {
     if (min == null) {
       return null;
     }
 
-    Deque<V> keyValues = valuesMap.get(min.key);
-    V minValue = keyValues.pollLast();
-    if (keyValues.isEmpty()) {
-      valuesMap.remove(min.key);
-    }
+    Node<K, V> minNode = min;
 
     /* Transfer min children into the root list */
-    for (Node child = min.firstChild; child != null; child = min.firstChild) {
-      cut(child);
-      appendToRootList(child);
+    for (Node<K, V> child = min.firstChild; child != null; child = min.firstChild) {
+      cutAndInsertIntoRootList(child);
     }
 
-    Node minNeighbour = (min.nextNode == null) ? min.previousNode : min.nextNode;
     removeNodeFromRootList(min);
 
-    if (minNeighbour == null) {
+    if (min.right == min) {
       /* Min was the only node in the heap */
       assert size == 1;
       min = null;
     } else {
-      min = minNeighbour;
+      min = min.right;
       consolidate();
     }
 
+    minNode.containingQueue = null;
     size--;
 
-    return minValue;
+    return minNode;
   }
 
   @Override
-  public void decreaseKey(K oldKey, K newKey) {
-
-  }
-
-  public void decreaseKey(Node node, K newKey) {
+  public void decreaseKey(Node<K, V> node, K newKey) {
     assert node != null;
 
-    if (newKey.compareTo(node.key) > 0) {
-      throw new IllegalArgumentException("new key should be greater than old key");
+    if (newKey == null) {
+      /* If newKey equals null it means node key should be -∞ */
+      node.makeMinimal();
+    } else {
+      if (newKey.compareTo(node.key) > 0) {
+        throw new IllegalArgumentException("new key should be greater than old key");
+      }
+
+      node.key = newKey;
     }
 
-    Node parent = node.parent;
-    node.key = newKey;
-    if (parent != null && node.key.compareTo(parent.key) < 0) {
-      cut(node);
+    Node<K, V> parent = node.parent;
+    if (parent != null && node.compareTo(parent) < 0) {
+      cutAndInsertIntoRootList(node);
       cascadingCut(parent);
     }
 
-    if (node.key.compareTo(min.key) < 0) {
+    if (node.compareTo(min) < 0) {
       min = node;
     }
   }
 
   @Override
-  public void delete(K key) {
-
-  }
-
-  @Override
-  public void union(PriorityQueue<K, V> other) {
-
+  public void delete(Node<K, V> node) {
+    if (node != null) {
+      decreaseKey(node, null);
+      extractMin();
+    }
   }
 
   public void union(FibonacciHeap<K, V> other) {
     if (lastRootNode == null) {
       assert firstRootNode == null && size == 0;
+
       firstRootNode = other.firstRootNode;
       lastRootNode = other.lastRootNode;
+      min = other.min;
     } else if (other.firstRootNode != null) {
       assert other.lastRootNode != null && other.size > 0;
-      lastRootNode.nextNode = other.firstRootNode;
-      other.firstRootNode.previousNode = lastRootNode;
+
+      lastRootNode.right = other.firstRootNode;
+      other.firstRootNode.left = lastRootNode;
+      other.lastRootNode.right = firstRootNode;
+      firstRootNode.left = other.lastRootNode;
       lastRootNode = other.lastRootNode;
+
+      if (other.min.compareTo(min) < 0) {
+        min = other.min;
+      }
     }
 
     size += other.size;
   }
 
-  /**
-   * Appends a node to the end of the heap root list.
-   */
-  private void appendToRootList(Node node) {
+  public boolean contains(Node<K, V> node) {
+    return node.containingQueue == this;
+  }
+
+  private void cutAndInsertIntoRootList(Node<K, V> node) {
+    assert node.parent != null;
+
+    if (node.right == node) {
+      /* Node is the single child of its parent */
+      assert node.left == node;
+      assert node.parent.childrenCount == 1;
+      assert node.parent.firstChild == node;
+      assert node.parent.lastChild == node;
+      node.parent.firstChild = null;
+      node.parent.lastChild = null;
+    } else {
+      node.right.left = node.left;
+      node.left.right = node.right;
+
+      if (node.parent.firstChild == node) {
+        node.parent.firstChild = node.right;
+      }
+      if (node.parent.lastChild == node) {
+        node.parent.lastChild = node.left;
+      }
+    }
+
+    node.parent.childrenCount--;
+
+    node.left = null;
+    node.right = null;
+    node.parent = null;
+    node.looser = false;
+
+    insertIntoRootList(node);
+  }
+
+  private void cascadingCut(Node<K, V> node) {
+    Node<K, V> parent = node.parent;
+    if (parent != null) {
+      if (!node.looser) {
+        node.looser = true;
+      } else {
+        cutAndInsertIntoRootList(node);
+        cascadingCut(parent);
+      }
+    }
+  }
+
+  private void insertIntoRootList(Node<K, V> node) {
     assert node.parent == null;
 
-    if (lastRootNode == null) {
-      assert firstRootNode == null && size == 0;
+    if (min == null) {
+      /* Node is the first node in the tree */
       firstRootNode = node;
+      lastRootNode = node;
+      node.left = node;
+      node.right = node;
     } else {
-      lastRootNode.nextNode = node;
+      min.insertLeft(node);
+      if (min == firstRootNode) {
+        firstRootNode = node;
+      }
     }
-    node.previousNode = lastRootNode;
-    lastRootNode = node;
   }
 
   private void consolidate() {
+    assert min != null;
+
     int maxDegree = getMaximumDegree();
-    ArrayList<Node> roots = new ArrayList<>(maxDegree + 1);
+    ArrayList<Node<K, V>> roots = new ArrayList<>(maxDegree + 1);
     for (int i = 0; i <= maxDegree; i++) {
       roots.add(null);
     }
 
-    LinkedList<Node> initialRoots = new LinkedList<>();
-
-    for (
-        Node initialRoot = firstRootNode;
-        initialRoot != null;
-        initialRoot = initialRoot.nextNode
-    ) {
+    // Save root nodes for simpler iterating further
+    LinkedList<Node<K, V>> initialRoots = new LinkedList<>();
+    Node<K, V> initialRoot = min;
+    do {
       assert initialRoot.parent == null;
       initialRoots.add(initialRoot);
-    }
+      initialRoot = initialRoot.right;
+    } while (initialRoot != min);
 
-    for (Node initialRoot : initialRoots) {
-      if (initialRoot.parent != null) {
-        // the node has been already removed from root list
-        continue;
-      }
-
-      Node x = initialRoot;
+    for (Node<K, V> x : initialRoots) {
       int degree = x.childrenCount;
       while (roots.get(degree) != null) {
-        Node nodeWithSameDegree = roots.get(degree);
+        Node<K, V> nodeWithSameDegree = roots.get(degree);
         assert x != nodeWithSameDegree;
 
-        Node parentNode = x;
-        Node childNode = nodeWithSameDegree;
-        if (x.key.compareTo(nodeWithSameDegree.key) > 0) {
+        Node<K, V> parentNode = x;
+        Node<K, V> childNode = nodeWithSameDegree;
+        if (x.compareTo(nodeWithSameDegree) > 0) {
           parentNode = nodeWithSameDegree;
           childNode = x;
         }
@@ -199,37 +244,24 @@ public class FibonacciHeap<K extends Comparable<K>, V> implements PriorityQueue<
       roots.set(degree, x);
     }
 
-    // Custom algorithm
-    /* Update min node */
+    // Insert remaining nodes into root list and update min
     min = null;
-    for (Node root = firstRootNode; root != null; root = root.nextNode) {
-      if (min == null || root.key.compareTo(min.key) < 0) {
-        min = root;
+    for (Node<K, V> root : roots) {
+      if (root != null) {
+        if (min == null) {
+          firstRootNode = root;
+          lastRootNode = root;
+          root.right = root;
+          root.left = root;
+          min = root;
+        } else {
+          insertIntoRootList(root);
+          if (root.compareTo(min) < 0) {
+            min = root;
+          }
+        }
       }
     }
-
-    // Algorithm from Cormen
-
-//    min = null;
-//    for (Node root : roots) {
-//      if (root == null) {
-//        continue;
-//      }
-//
-//      if (min == null) {
-//        root.nextNode = null;
-//        root.previousNode = null;
-//        firstRootNode = root;
-//        lastRootNode = root;
-//        min = root;
-//      } else {
-//        appendToRootList(root);
-//        if (root.key.compareTo(min.key) < 0) {
-//          min = root;
-//        }
-//      }
-//    }
-
   }
 
   /**
@@ -250,127 +282,12 @@ public class FibonacciHeap<K extends Comparable<K>, V> implements PriorityQueue<
     return (int) Math.floor(Math.log(size) / Math.log(1.5));
   }
 
-  private void removeNodeFromRootList(Node node) {
+  /**
+   * Removes node by updating its neighbours pointers.
+   */
+  private void removeNodeFromRootList(Node<K, V> node) {
     assert node.parent == null;
-
-    if (node.previousNode == null) {
-      /* Node was first */
-      assert firstRootNode == node;
-      firstRootNode = node.nextNode;
-    } else {
-      node.previousNode.nextNode = node.nextNode;
-    }
-
-    if (node.nextNode == null) {
-      /* Node was last */
-      assert lastRootNode == node;
-      lastRootNode = node.previousNode;
-    } else {
-      node.nextNode.previousNode = node.previousNode;
-    }
-
-    node.previousNode = null;
-    node.nextNode = null;
-  }
-
-  void cut(Node node) {
-    Node parent = node.parent;
-    assert parent != null;
-
-    if (node.previousNode == null) {
-      /* Node was first */
-      assert parent.firstChild == node;
-      parent.firstChild = node.nextNode;
-    } else {
-      node.previousNode.nextNode = node.nextNode;
-    }
-
-    if (node.nextNode == null) {
-      /* Node was last */
-      assert parent.lastChild == node;
-      parent.lastChild = node.previousNode;
-    } else {
-      node.nextNode.previousNode = node.previousNode;
-    }
-
-    node.previousNode = null;
-    node.nextNode = null;
-    node.parent = null;
-    node.looser = false;
-    parent.childrenCount--;
-  }
-
-  void cascadingCut(Node node) {
-    Node parent = node.parent;
-    if (parent != null) {
-      if (!parent.looser) {
-        parent.looser = true;
-      } else {
-        cut(node);
-        cascadingCut(parent);
-      }
-    }
-  }
-
-  private final class Node {
-    K key;
-    Node parent;
-    Node previousNode;
-    Node nextNode;
-    Node firstChild;
-    Node lastChild;
-    int childrenCount;
-    boolean looser;
-
-    Node(K key) {
-      this.key = key;
-      this.parent = null;
-      this.previousNode = null;
-      this.nextNode = null;
-      this.firstChild = null;
-      this.lastChild = null;
-      this.childrenCount = 0;
-      this.looser = false;
-    }
-
-    private void appendChild(Node node) {
-      node.parent = this;
-      node.nextNode = null;
-
-      if (lastChild == null) {
-        /* Node is first child */
-        assert firstChild == null && childrenCount == 0;
-        node.previousNode = null;
-        firstChild = node;
-      } else {
-        node.previousNode = lastChild;
-        lastChild.nextNode = node;
-      }
-
-      lastChild = node;
-      childrenCount++;
-    }
-
-    /**
-     * Inserts a node to the right of this node.
-     */
-//    void insertRight(Node node) {
-//      node.parent = parent;
-//
-//      if (nextNode == null) {
-//        /* Node was the last */
-//        parent.lastChild = node;
-//      } else {
-//        nextNode.previousNode = node;
-//      }
-//
-//      node.nextNode = nextNode;
-//      node.previousNode = this;
-//      nextNode = node;
-//
-//      if (parent != null) {
-//        parent.childrenCount++;
-//      }
-//    }
+    node.left.right = node.right;
+    node.right.left = node.left;
   }
 }
